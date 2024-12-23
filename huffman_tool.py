@@ -1,4 +1,6 @@
 
+import argparse
+import json
 import os
 import heapq
 from typing import Dict, Optional, Tuple
@@ -47,20 +49,28 @@ def build_huffman_tree(frequencies: Dict[str, int]) -> HuffmanNode:
     
     return priority_queue[0] # root node
 
-def print_huffman_tree(node: HuffmanNode, prefix: str= "") -> None:
+def generate_prefix_code(node: HuffmanNode, prefix: str= "", code_table: Optional[Dict[str, int]] = None) -> Dict[str, int]:
     """
-    Prints the huffma tree in a human readable form.
+    Generates the prefix-code table from the Huffman Tree.
 
     Args:
         node (HuffmanNode): The root of the Huffman Tree.
         prefix (str): The prefix for the current node's value.
+        code_table (Optional[Dict[str, str]]): A dictionary to store the prefix codes.
+
+    Returns:
+        Dict[str, str]: A dictionary mapping characters to their prefix codes.
     """
+    if code_table is None:
+        code_table = {}
 
     if node is not None:
         if node.char is not None:
-            print(f"{node.char}: {prefix}")
-        print_huffman_tree(node.left, prefix + "0")
-        print_huffman_tree(node.right, prefix + "1")
+            code_table[node.char] = prefix
+        generate_prefix_code(node.left, prefix + "0", code_table)
+        generate_prefix_code(node.right, prefix + "1", code_table)
+
+    return code_table
 
 
 def validate_file(file_path: str) -> bool:
@@ -95,36 +105,54 @@ def count_character_frequencies(file_path: str) -> Dict[str, int]:
     return frequencies
 
 
-def main(file_path: str) -> None:
+def main(input_file: str, output_file: str) -> None:
     """
-    Main function to validate the file and count character frequencies if valid.
+    Main function to validate the file, count character frequencies,
+    build the Huffman Tree, generate the prefix code table,
+    and write the compressed output file.
 
     Args:
-        file_path (str): Path to file to process
-
-    Returns:
-        Tuple[bool, Dict[str, int]]: A tuple where the first element indicates file validity and the second is the frequency table.
+        input_fie (str): Path to the input file
+        output_file (str): Path to the output file
     """
 
-    if not validate_file(file_path):
-        print(f"Error: File {file_path} is not valid or not accessible.")
+    if not validate_file(input_file):
+        print(f"Error: File {input_file} is not valid or not accessible.")
         return False, {}
     
     try:
         # step 1: count character frequencies
-        frequencies = count_character_frequencies(file_path)
+        frequencies = count_character_frequencies(input_file)
         print(f"Character frequencies: {frequencies}")
 
         # step 2: build the Huffman Tree
         huffman_root = build_huffman_tree(frequencies)
 
-        # step 3: pritn Huffman codes
+        # step 3: generate the prefix-code table
+        prefix_code_table = generate_prefix_code(huffman_root)
         print("\nHuffman Codes:")
-        print_huffman_tree(huffman_root)
+        for char, code in prefix_code_table.items():
+            print(f"{char}: {code}")
+
+        # step 4: write the header and the compressed data to the output file
+        with open(input_file, 'r', encoding='utf-8') as infile, open(output_file, 'w', encoding='utf-8') as outfile:
+            # header in JSON for simplicity
+            header = json.dumps(frequencies)
+            outfile.write(header + "\n") # separate header from data with a newline
+
+            # write compressed data
+            for line in infile:
+                compressed_line = ''.join(prefix_code_table[char] for char in line)
+                outfile.write(compressed_line)
+
+        print(f"Compressed file written to {output_file}")
 
     except Exception as error:
         print(f"An error occured: {error}")
 
 if __name__ == '__main__':
-    input_file = input("Enter the file path: ")
-    main(input_file)
+    parser = argparse.ArgumentParser(description="Huffman Compression Tool")
+    parser.add_argument("input_file", help="Path to the input file")
+    parser.add_argument("output_file", help="Path to the output file")
+    args = parser.parse_args()
+    main(args.input_file, args.output_file)
