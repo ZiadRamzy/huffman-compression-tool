@@ -1,6 +1,6 @@
 import os
 import unittest
-from huffman_tool import count_character_frequencies, validate_file
+from huffman_tool import count_character_frequencies, validate_file, build_huffman_tree, HuffmanNode
 
 class TestHuffmanTool(unittest.TestCase):
     def setUp(self):
@@ -43,3 +43,55 @@ class TestHuffmanTool(unittest.TestCase):
         }
 
         self.assertEqual(count_character_frequencies(self.test_file), expected_frequencies)
+
+    def test_huffman_tree_example(self):
+        """
+        Test the Huffman Tree with a sample frequenc table.
+        """
+
+        frequencies = {'a': 45, 'b': 13, 'c': 12, 'd': 16, 'e': 9, 'f': 5}
+        root = build_huffman_tree(frequencies)
+        
+        # validate the huffman codes for each character
+        codes = {}
+        def traverse(node, code):
+            if node.char is not None: #leaf node
+                codes[node.char] = code
+            if node.left:
+                traverse(node.left, code + "0")
+            if node.right:
+                traverse(node.right, code + "1")
+
+        traverse(root, "")
+        expected_codes = {
+        'a': '0',
+        'c': '100',
+        'b': '101',
+        'f': '1100',
+        'e': '1101',
+        'd': '111'
+        }
+        self.assertEqual(expected_codes, codes)         
+
+    def test_single_character(self):
+        """
+        Test the Huffman Tree with a single character.
+        """
+
+        frequencies = {'a': 1}
+        root = build_huffman_tree(frequencies)
+
+        self.assertEqual(root.char, 'a')
+        self.assertEqual(root.freq, 1)
+        self.assertIsNone(root.left)
+        self.assertIsNone(root.right)
+
+
+    def test_empty_frequencies(self):
+        """
+        Test the Huffman Tree with an empty freq table.
+        """
+
+        frequencies = {}
+        with self.assertRaises(IndexError):
+            build_huffman_tree(frequencies)
