@@ -1,6 +1,7 @@
+import json
 import os
 import unittest
-from huffman_tool import count_character_frequencies, validate_file, build_huffman_tree, HuffmanNode
+from huffman_tool import count_character_frequencies, validate_file, build_huffman_tree, HuffmanNode, generate_prefix_code
 
 class TestHuffmanTool(unittest.TestCase):
     def setUp(self):
@@ -95,3 +96,74 @@ class TestHuffmanTool(unittest.TestCase):
         frequencies = {}
         with self.assertRaises(IndexError):
             build_huffman_tree(frequencies)
+
+    
+    def test_write_header(self):
+        """
+        Test if the header (character frequencies) is correctly written to the output file.
+        """
+
+        output_file = 'output.huff'
+        expected_header = {
+            'a': 3,
+            'b': 2,
+            'c': 1,
+            '\n': 1,
+            'X': 2,
+            't': 2
+        }
+
+        # Generate Huffman tree and prefix codes
+        frequencies = count_character_frequencies(self.test_file)
+        huffman_root = build_huffman_tree(frequencies)
+        prefix_code_table = generate_prefix_code(huffman_root)
+
+        # Write to output file
+        with open(self.test_file, 'r', encoding='utf-8') as infile, open(output_file, 'w', encoding='utf-8') as outfile:
+            header = json.dumps(frequencies)
+            outfile.write(header + "\n")  # Write header
+            for line in infile:
+                compressed_line = ''.join(prefix_code_table[char] for char in line)
+                outfile.write(compressed_line)
+
+        # Verify header in output file
+        with open(output_file, 'r', encoding='utf-8') as file:
+            written_header = file.readline().strip()
+            self.assertEqual(json.loads(written_header), expected_header)
+
+        # Cleanup
+        if os.path.exists(output_file):
+            os.remove(output_file)
+
+        
+    def test_header_and_compressed_data_separation(self):
+        """
+        Test if the header and compressed data are correctly separated in the output file.
+        """
+        output_file = 'output.huff'
+
+        # Generate Huffman tree and prefix codes
+        frequencies = count_character_frequencies(self.test_file)
+        huffman_root = build_huffman_tree(frequencies)
+        prefix_code_table = generate_prefix_code(huffman_root)
+
+        # Write to output file
+        with open(self.test_file, 'r', encoding='utf-8') as infile, open(output_file, 'w', encoding='utf-8') as outfile:
+            header = json.dumps(frequencies)
+            outfile.write(header + "\n")  # Write header
+            for line in infile:
+                compressed_line = ''.join(prefix_code_table[char] for char in line)
+                outfile.write(compressed_line)
+
+        # Verify separation
+        with open(output_file, 'r', encoding='utf-8') as file:
+            header = file.readline().strip()  # Read header
+            compressed_data = file.read().strip()  # Read compressed data
+
+        self.assertTrue(header)  # Header should not be empty
+        self.assertTrue(compressed_data)  # Compressed data should not be empty
+        self.assertNotEqual(header, compressed_data)  # Header and data should differ
+
+        # Cleanup
+        if os.path.exists(output_file):
+            os.remove(output_file)
