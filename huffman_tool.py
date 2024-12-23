@@ -128,6 +128,32 @@ def pack_bits(bit_string: str) -> bytes:
     return bytes(byte_array)
 
 
+def read_header_and_rebuild_tree(encoded_file: str) -> Tuple[HuffmanNode, Dict[str, int]]:
+    """
+    Reads the header from the encoded file, rebuilds the Huffman Tree,
+    and regenerates the prefix-code table.
+
+    Args:
+        encoded_file (str): Path to the encoded file.
+
+    Returns:
+        Tuple[HuffmanNode, Dict[str, int]]: The root of the Huffman Tree and the prefix-code table.
+    """
+
+    with open(encoded_file, 'rb') as file:
+        # read header
+        header_line = file.readline().strip()
+        frequencies = json.loads(header_line.decode('utf-8'))
+
+        # rebuild Huffman Tree
+        huffman_root = build_huffman_tree(frequencies)
+
+        # regenerate prefix-code table.
+        prefix_code_table = generate_prefix_code(huffman_root)
+    
+    return huffman_root, prefix_code_table
+
+
 
 def main(input_file: str, output_file: str) -> None:
     """
