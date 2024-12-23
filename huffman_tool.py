@@ -154,6 +154,55 @@ def read_header_and_rebuild_tree(encoded_file: str) -> Tuple[HuffmanNode, Dict[s
     return huffman_root, prefix_code_table
 
 
+def decode_compressed_file(encoded_file: str, output_file: str) -> None:
+    """
+    Decodes a compressed file using the Huffman tree and writes the decompressed text to an output file.
+
+    Args:
+        encoded_file (str): Path to the encoded file.
+        output_file (str): Path to the output file for the decompressed text.
+    """
+    with open(encoded_file, 'rb') as infile:
+        # Step 1: Read and parse the header
+        header_line = infile.readline().strip()
+        header = json.loads(header_line.decode('utf-8'))
+        frequencies = header["frequencies"]
+        bit_string_length = header["bit_string_length"]
+
+        # Step 2: Rebuild Huffman Tree
+        huffman_root = build_huffman_tree(frequencies)
+
+        # Step 3: Read the compressed data
+        compressed_data = infile.read()
+
+        # Step 4: Convert binary data to bit string
+        bit_string = ''.join(f'{byte:08b}' for byte in compressed_data)
+
+        # Step 5: Truncate bit string to the original length
+        bit_string = bit_string[:bit_string_length]
+
+        # Step 6: Decode the bit string using the Huffman Tree
+        decoded_text = []
+        current_node = huffman_root
+        for bit in bit_string:
+            if bit == '0':
+                current_node = current_node.left
+            else:
+                current_node = current_node.right
+
+            # If we reach a leaf node, append the character to the output
+            if current_node.char is not None:
+                decoded_text.append(current_node.char)
+                current_node = huffman_root  # Reset to root for the next character
+
+        # Step 7: Write the decoded text to the output file
+        with open(output_file, 'w', encoding='utf-8') as outfile:
+            outfile.write(''.join(decoded_text))
+
+    print(f"Decompressed file written to {output_file}")
+
+
+
 
 def main(input_file: str, output_file: str) -> None:
     """
@@ -189,10 +238,6 @@ def main(input_file: str, output_file: str) -> None:
 
         # step 4: write the header and the compressed data to the output file
         with open(input_file, 'r', encoding='utf-8') as infile, open(output_file, 'wb') as outfile:
-            # header in JSON for simplicity
-            header = json.dumps(frequencies).encode('utf-8')
-            outfile.write(header +  b'\n') # separate header from data with a newline
-
             # Compress and write binary data
             bit_string = ""
             for line in infile:
@@ -202,6 +247,13 @@ def main(input_file: str, output_file: str) -> None:
                         bit_string += prefix_code_table[char]
                     else:
                         raise ValueError(f"Character '{char}' not in prefix code table.")
+            # Write header: include frequencies and original bit string length
+            header = {
+                "frequencies": frequencies,
+                "bit_string_length": len(bit_string)
+            }
+            outfile.write(json.dumps(header).encode('utf-8') + b'\n')
+            
             compressed_data = pack_bits(bit_string)
             outfile.write(compressed_data)
 
@@ -214,5 +266,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Huffman Compression Tool")
     parser.add_argument("input_file", help="Path to the input file")
     parser.add_argument("output_file", help="Path to the output file")
+    parser.add_argument(
+        "--mode",
+        choices=["compress", "decompress"],
+        required=True,
+        help="Mode of operation: compress or decompress"
+    )
     args = parser.parse_args()
-    main(args.input_file, args.output_file)
+
+    if args.mode == "compress":
+        main(args.input_file, args.output_file)
+    elif args.mode == "decompress":
+        decode_compressed_file(args.input_file, args.output_file)
