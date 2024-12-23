@@ -1,7 +1,7 @@
 import json
 import os
 import unittest
-from huffman_tool import count_character_frequencies, validate_file, build_huffman_tree, HuffmanNode, generate_prefix_code
+from huffman_tool import count_character_frequencies, validate_file, build_huffman_tree, HuffmanNode, generate_prefix_code, read_header_and_rebuild_tree
 
 class TestHuffmanTool(unittest.TestCase):
     def setUp(self):
@@ -167,3 +167,15 @@ class TestHuffmanTool(unittest.TestCase):
         # Cleanup
         if os.path.exists(output_file):
             os.remove(output_file)
+
+    
+    def test_rebuild_tree_from_header(self):
+        encoded_file = 'compressed.huff'
+
+        # Rebuild tree and regenerate prefix-code table
+        huffman_root, prefix_code_table = read_header_and_rebuild_tree(encoded_file)
+
+        # Print the prefix-code table for verification
+        print("Regenerated Prefix-Code Table:")
+        for char, code in prefix_code_table.items():
+            print(f"{char}: {code}")
