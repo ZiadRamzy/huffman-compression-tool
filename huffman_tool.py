@@ -105,6 +105,30 @@ def count_character_frequencies(file_path: str) -> Dict[str, int]:
     return frequencies
 
 
+def pack_bits(bit_string: str) -> bytes:
+    """
+    Packs a bit string into bytes.
+
+    Args:
+        bit_string (str): a string of '0's and '1's representing bits.
+
+    Returns:
+        bytes: The packed binary data. 
+    """
+
+    # pad the bit string to make its length a multiple of 8
+    padded_bit_string = bit_string + '0' *((8 - len(bit_string) % 8) % 8)
+
+    # convert the padded bit string into a byte array
+    byte_array = bytearray()
+    for i in range(0, len(padded_bit_string), 8):
+        byte_array.append(int(padded_bit_string[i: i + 8], 2))
+
+    
+    return bytes(byte_array)
+
+
+
 def main(input_file: str, output_file: str) -> None:
     """
     Main function to validate the file, count character frequencies,
@@ -123,6 +147,9 @@ def main(input_file: str, output_file: str) -> None:
     try:
         # step 1: count character frequencies
         frequencies = count_character_frequencies(input_file)
+        # Remove BOM from the frequency table if present
+        if '\ufeff' in frequencies:
+            del frequencies['\ufeff']
         print(f"Character frequencies: {frequencies}")
 
         # step 2: build the Huffman Tree
@@ -135,15 +162,22 @@ def main(input_file: str, output_file: str) -> None:
             print(f"{char}: {code}")
 
         # step 4: write the header and the compressed data to the output file
-        with open(input_file, 'r', encoding='utf-8') as infile, open(output_file, 'w', encoding='utf-8') as outfile:
+        with open(input_file, 'r', encoding='utf-8') as infile, open(output_file, 'wb') as outfile:
             # header in JSON for simplicity
-            header = json.dumps(frequencies)
-            outfile.write(header + "\n") # separate header from data with a newline
+            header = json.dumps(frequencies).encode('utf-8')
+            outfile.write(header +  b'\n') # separate header from data with a newline
 
-            # write compressed data
+            # Compress and write binary data
+            bit_string = ""
             for line in infile:
-                compressed_line = ''.join(prefix_code_table[char] for char in line)
-                outfile.write(compressed_line)
+                line = line.lstrip('\ufeff')  # Strip BOM if present
+                for char in line:
+                    if char in prefix_code_table:
+                        bit_string += prefix_code_table[char]
+                    else:
+                        raise ValueError(f"Character '{char}' not in prefix code table.")
+            compressed_data = pack_bits(bit_string)
+            outfile.write(compressed_data)
 
         print(f"Compressed file written to {output_file}")
 
